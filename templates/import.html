@@ -359,9 +359,10 @@ function showResult(success, title, detail) {
 
     if (success && typeof detail === 'object') {
         html += '<div class="result-stats">';
-        html += '<div class="result-stat result-stat-total"><span class="stat-num">' + detail.total + '</span><span class="stat-label">总行数</span></div>';
-        html += '<div class="result-stat result-stat-new"><span class="stat-num">' + detail.success + '</span><span class="stat-label">新增</span></div>';
-        html += '<div class="result-stat result-stat-update"><span class="stat-num">' + detail.updated + '</span><span class="stat-label">更新</span></div>';
+        html += '<div class="result-stat result-stat-total"><span class="stat-num">' + detail.total + '</span><span class="stat-label">联系人总行数</span></div>';
+        html += '<div class="result-stat result-stat-new"><span class="stat-num">' + detail.success + '</span><span class="stat-label">新增联系人</span></div>';
+        html += '<div class="result-stat result-stat-update"><span class="stat-num">' + detail.updated + '</span><span class="stat-label">更新联系人</span></div>';
+        html += '<div class="result-stat result-stat-followup"><span class="stat-num">' + (detail.fu_success || 0) + '</span><span class="stat-label">导入跟进记录</span></div>';
         html += '<div class="result-stat result-stat-error"><span class="stat-num">' + detail.errors + '</span><span class="stat-label">失败</span></div>';
         html += '</div>';
 

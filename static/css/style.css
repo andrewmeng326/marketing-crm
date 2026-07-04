@@ -985,6 +985,7 @@ svg { display: inline-block; vertical-align: middle; }
 .result-stat-total .stat-num { color: var(--text); }
 .result-stat-new .stat-num { color: var(--success); }
 .result-stat-update .stat-num { color: var(--info); }
+.result-stat-followup .stat-num { color: #2E7D32; }
 .result-stat-error .stat-num { color: var(--danger); }
 
 .result-errors {

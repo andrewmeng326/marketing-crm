@@ -947,24 +947,69 @@ def import_template():
     # 冻结首行
     ws.freeze_panes = 'A2'
 
-    # === Sheet2: 填写说明 ===
-    ws2 = wb.create_sheet('填写说明')
-    ws2.column_dimensions['A'].width = 20
-    ws2.column_dimensions['B'].width = 60
+    # === Sheet2: 跟进记录 ===
+    ws2 = wb.create_sheet('跟进记录')
+    fu_headers = ['单位名称', '跟进日期', '跟进方式', '跟进内容', '下次跟进日期']
+    ws2.append(fu_headers)
 
-    ws2['A1'] = '营销人员信息导入模板 - 填写说明'
-    ws2['A1'].font = Font(bold=True, size=14, color='4F6EF7')
-    ws2.merge_cells('A1:B1')
+    for col_idx, cell in enumerate(ws2[1], 1):
+        cell.font = header_font
+        cell.fill = PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid')
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = thin_border
+        if fu_headers[col_idx - 1] in ('单位名称', '跟进内容'):
+            cell.comment = Comment('此列为必填项', '系统')
+
+    # 跟进记录示例
+    fu_examples = [
+        ['湖北省发改委', '2024-01-15', '电话', '致电张处长，了解轨道交通项目审批进度，对方表示正在走内部流程，预计下月有结果', '2024-02-15'],
+        ['中交二航设计院', '2024-01-20', '拜访', '拜访李华总工，讨论市政道路设计方案，对方对合作模式感兴趣', '2024-02-05'],
+        ['中建三局', '2024-02-01', '微信', '发送房建总包合作方案，王经理回复需要内部讨论', '2024-02-20'],
+    ]
+    for row_data in fu_examples:
+        ws2.append(row_data)
+        row_num = ws2.max_row
+        for cell in ws2[row_num]:
+            cell.fill = example_fill
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center', wrap_text=True)
+
+    # 跟进方式下拉验证
+    fu_type_list = ','.join(['电话', '拜访', '微信', '邮件', '会议', '其他'])
+    dv_fu_type = DataValidation(type='list', formula1=f'"{fu_type_list}"', allow_blank=True)
+    dv_fu_type.error = '请选择：电话/拜访/微信/邮件/会议/其他'
+    dv_fu_type.errorTitle = '跟进方式无效'
+    dv_fu_type.prompt = '点击下拉箭头选择跟进方式'
+    dv_fu_type.promptTitle = '跟进方式'
+    ws2.add_data_validation(dv_fu_type)
+    dv_fu_type.add(f'C2:C1000')
+
+    # 跟进记录列宽
+    fu_col_widths = [22, 14, 12, 50, 14]
+    for i, w in enumerate(fu_col_widths, 1):
+        ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    # 冻结首行
+    ws2.freeze_panes = 'A2'
+
+    # === Sheet3: 填写说明 ===
+    ws3 = wb.create_sheet('填写说明')
+    ws3.column_dimensions['A'].width = 20
+    ws3.column_dimensions['B'].width = 60
+
+    ws3['A1'] = '营销人员信息导入模板 - 填写说明'
+    ws3['A1'].font = Font(bold=True, size=14, color='4F6EF7')
+    ws3.merge_cells('A1:B1')
 
     instructions = [
         ('', ''),
         ('一、使用步骤', ''),
         ('步骤1', '下载本模板到本地'),
-        ('步骤2', '在"联系人数据"工作表中填写客户信息（可删除示例行）'),
+        ('步骤2', '在"联系人数据"工作表中填写客户信息，在"跟进记录"工作表中填写跟进情况'),
         ('步骤3', '保存文件后，回到网页点击"上传导入"'),
         ('步骤4', '确认导入结果，如有错误可修正后重新上传'),
         ('', ''),
-        ('二、字段说明', ''),
+        ('二、「联系人数据」字段说明', ''),
         ('大类', '必填。下拉选择：业主单位 / 设计及咨询单位 / 施工单位及监理 / 供应商 / 运营方'),
         ('子类', '业主单位下的子类（政府部门/主管单位/投资方/学校），其他大类可留空'),
         ('单位名称', '必填。客户单位全称，如"湖北省发改委"'),
@@ -980,23 +1025,31 @@ def import_template():
         ('备注', '其他补充信息'),
         ('状态', '下拉选择：活跃 / 潜在 / 沉睡（留空默认为"活跃"）'),
         ('', ''),
-        ('三、注意事项', ''),
-        ('注意1', '黄色底纹为必填字段（大类、单位名称）'),
+        ('三、「跟进记录」字段说明', ''),
+        ('单位名称', '必填。与「联系人数据」中的单位名称一致，系统自动关联'),
+        ('跟进日期', '格式如 2024-01-15，跟进发生的日期'),
+        ('跟进方式', '下拉选择：电话 / 拜访 / 微信 / 邮件 / 会议 / 其他'),
+        ('跟进内容', '必填。跟进的具体内容描述'),
+        ('下次跟进日期', '格式如 2024-02-15，计划下次跟进日期（可留空）'),
+        ('', ''),
+        ('四、注意事项', ''),
+        ('注意1', '黄色底纹为必填字段（大类、单位名称、跟进内容）'),
         ('注意2', '浅蓝底纹行为示例数据，导入前请删除或替换'),
         ('注意3', '维系人请填写系统中已存在的用户姓名，否则留空'),
         ('注意4', '同一单位名称如已存在，将更新该单位信息而非重复新增'),
         ('注意5', '一次最多导入500条数据'),
+        ('注意6', '跟进记录中的单位名称必须与联系人数据中的一致，否则导入失败'),
     ]
     for row_idx, (key, desc) in enumerate(instructions, 2):
-        ws2.cell(row=row_idx, column=1, value=key)
-        ws2.cell(row=row_idx, column=2, value=desc)
-        if key.startswith('一') or key.startswith('二') or key.startswith('三'):
-            ws2.cell(row=row_idx, column=1).font = Font(bold=True, size=12, color='2C3E50')
+        ws3.cell(row=row_idx, column=1, value=key)
+        ws3.cell(row=row_idx, column=2, value=desc)
+        if key.startswith('一') or key.startswith('二') or key.startswith('三') or key.startswith('四'):
+            ws3.cell(row=row_idx, column=1).font = Font(bold=True, size=12, color='2C3E50')
         elif key.startswith('步骤') or key.startswith('注意'):
-            ws2.cell(row=row_idx, column=1).font = Font(bold=True, color='4F6EF7')
+            ws3.cell(row=row_idx, column=1).font = Font(bold=True, color='4F6EF7')
         elif key:
-            ws2.cell(row=row_idx, column=1).font = Font(bold=True)
-            ws2.cell(row=row_idx, column=1).fill = PatternFill(
+            ws3.cell(row=row_idx, column=1).font = Font(bold=True)
+            ws3.cell(row=row_idx, column=1).fill = PatternFill(
                 start_color='F0F4FF', end_color='F0F4FF', fill_type='solid')
 
     output = BytesIO()
@@ -1184,7 +1237,81 @@ def import_data():
             error_count += 1
 
     db.commit()
-    log_action('导入数据', '', f'导入: 新增{success_count}条, 更新{update_count}条, 失败{error_count}条')
+
+    # ========== 处理跟进记录sheet ==========
+    fu_success = 0
+    fu_errors = 0
+
+    if '跟进记录' in wb.sheetnames:
+        ws_fu = wb['跟进记录']
+        fu_rows = list(ws_fu.iter_rows(values_only=True))
+        if len(fu_rows) > 1:
+            # 解析跟进记录表头
+            fu_header = [str(h).strip() if h else '' for h in fu_rows[0]]
+            fu_col_map = {}
+            fu_field_aliases = {
+                '单位名称': ['单位名称', '单位', '关联单位'],
+                '跟进日期': ['跟进日期', '日期'],
+                '跟进方式': ['跟进方式', '方式'],
+                '跟进内容': ['跟进内容', '内容'],
+                '下次跟进日期': ['下次跟进日期', '下次跟进'],
+            }
+            for field, aliases in fu_field_aliases.items():
+                for idx, h in enumerate(fu_header):
+                    if h in aliases:
+                        fu_col_map[field] = idx
+                        break
+
+            # 必须有单位名称和跟进内容
+            if '单位名称' in fu_col_map and '跟进内容' in fu_col_map:
+                for fu_row_idx, fu_row in enumerate(fu_rows[1:], 2):
+                    if not fu_row or all(v is None or str(v).strip() == '' for v in fu_row):
+                        continue
+
+                    def fu_cell(field):
+                        idx = fu_col_map.get(field)
+                        if idx is None or idx >= len(fu_row):
+                            return ''
+                        val = fu_row[idx]
+                        return str(val).strip() if val is not None else ''
+
+                    fu_unit = fu_cell('单位名称')
+                    fu_content = fu_cell('跟进内容')
+                    fu_date = fu_cell('跟进日期')
+                    fu_type = fu_cell('跟进方式') or '电话'
+                    fu_next = fu_cell('下次跟进日期') or None
+
+                    if not fu_unit or not fu_content:
+                        fu_errors += 1
+                        errors.append(f'跟进记录第{fu_row_idx}行：单位名称或跟进内容为空，已跳过')
+                        continue
+
+                    # 查找关联的联系人ID
+                    contact_id = existing_units.get(fu_unit)
+                    if not contact_id:
+                        # 可能联系人已存在但不在本次导入中，查数据库
+                        cr = db.execute('SELECT id FROM contacts WHERE unit_name = ?', (fu_unit,)).fetchone()
+                        if cr:
+                            contact_id = cr['id']
+                        else:
+                            fu_errors += 1
+                            errors.append(f'跟进记录第{fu_row_idx}行：单位"{fu_unit}"在联系人中不存在，已跳过')
+                            continue
+
+                    try:
+                        db.execute('''INSERT INTO followups
+                            (contact_id, follow_date, follow_type, content, next_follow_date, created_by)
+                            VALUES (?, ?, ?, ?, ?, ?)''',
+                            (contact_id, fu_date, fu_type, fu_content, fu_next, session['user_id']))
+                        fu_success += 1
+                    except Exception as e:
+                        fu_errors += 1
+                        errors.append(f'跟进记录第{fu_row_idx}行：写入失败 - {str(e)}')
+            else:
+                errors.append('跟进记录sheet缺少必要列（单位名称、跟进内容），已跳过')
+        db.commit()
+
+    log_action('导入数据', '', f'导入: 联系人新增{success_count}条, 更新{update_count}条, 跟进记录{fu_success}条, 失败{error_count + fu_errors}条')
 
     # 限制错误信息数量
     if len(errors) > 20:
@@ -1195,7 +1322,8 @@ def import_data():
         'total': total_rows,
         'success': success_count,
         'updated': update_count,
-        'errors': error_count,
+        'fu_success': fu_success,
+        'errors': error_count + fu_errors,
         'error_details': errors,
     })
 

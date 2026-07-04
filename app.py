@@ -123,21 +123,21 @@ def init_db():
     ''')
     db.commit()
 
-    # 创建默认管理员
-    admin = db.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
-    if not admin:
-        db.execute(
-            'INSERT INTO users (username, password_hash, name, role, access_level, team, phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            ('admin', generate_password_hash('admin123'), '系统管理员', 'admin', 'L3', '管理组', '13800000000')
-        )
-        # 创建一个示例营销人员账号
-        db.execute(
-            'INSERT OR IGNORE INTO users (username, password_hash, name, role, access_level, team, phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            ('sales01', generate_password_hash('sales123'), '营销员-张三', 'staff', 'L1', '一组', '13900000001')
-        )
-        db.commit()
-        print('[初始化] 默认管理员账号: admin / admin123')
-        print('[初始化] 示例营销员账号: sales01 / sales123')
+    # 创建默认账号（使用 INSERT OR IGNORE 避免多 worker 并发冲突）
+    db.execute(
+        'INSERT OR IGNORE INTO users (username, password_hash, name, role, access_level, team, phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ('admin', generate_password_hash('admin123'), '系统管理员', 'admin', 'L3', '管理组', '13800000000')
+    )
+    db.execute(
+        'INSERT OR IGNORE INTO users (username, password_hash, name, role, access_level, team, phone) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ('sales01', generate_password_hash('sales123'), '营销员-张三', 'staff', 'L1', '一组', '13900000001')
+    )
+    db.commit()
+
+    # 首次创建时打印提示
+    admin_row = db.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
+    if admin_row:
+        print('[数据库] 已就绪，默认管理员账号: admin / admin123')
 
     db.close()
 

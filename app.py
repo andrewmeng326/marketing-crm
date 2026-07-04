@@ -949,7 +949,7 @@ def import_template():
 
     # === Sheet2: 跟进记录 ===
     ws2 = wb.create_sheet('跟进记录')
-    fu_headers = ['单位名称', '跟进日期', '跟进方式', '跟进内容', '下次跟进日期']
+    fu_headers = ['单位名称', '联系人', '跟进日期', '跟进方式', '跟进内容', '下次跟进日期', '操作人']
     ws2.append(fu_headers)
 
     for col_idx, cell in enumerate(ws2[1], 1):
@@ -962,9 +962,9 @@ def import_template():
 
     # 跟进记录示例
     fu_examples = [
-        ['湖北省发改委', '2024-01-15', '电话', '致电张处长，了解轨道交通项目审批进度，对方表示正在走内部流程，预计下月有结果', '2024-02-15'],
-        ['中交二航设计院', '2024-01-20', '拜访', '拜访李华总工，讨论市政道路设计方案，对方对合作模式感兴趣', '2024-02-05'],
-        ['中建三局', '2024-02-01', '微信', '发送房建总包合作方案，王经理回复需要内部讨论', '2024-02-20'],
+        ['湖北省发改委', '张明', '2024-01-15', '电话', '致电张处长，了解轨道交通项目审批进度，对方表示正在走内部流程，预计下月有结果', '2024-02-15', '系统管理员'],
+        ['中交二航设计院', '李华', '2024-01-20', '拜访', '拜访李华总工，讨论市政道路设计方案，对方对合作模式感兴趣', '2024-02-05', '系统管理员'],
+        ['中建三局', '王强', '2024-02-01', '微信', '发送房建总包合作方案，王经理回复需要内部讨论', '2024-02-20', '系统管理员'],
     ]
     for row_data in fu_examples:
         ws2.append(row_data)
@@ -982,10 +982,10 @@ def import_template():
     dv_fu_type.prompt = '点击下拉箭头选择跟进方式'
     dv_fu_type.promptTitle = '跟进方式'
     ws2.add_data_validation(dv_fu_type)
-    dv_fu_type.add(f'C2:C1000')
+    dv_fu_type.add(f'D2:D1000')
 
     # 跟进记录列宽
-    fu_col_widths = [22, 14, 12, 50, 14]
+    fu_col_widths = [22, 12, 14, 12, 50, 14, 14]
     for i, w in enumerate(fu_col_widths, 1):
         ws2.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
@@ -1027,10 +1027,12 @@ def import_template():
         ('', ''),
         ('三、「跟进记录」字段说明', ''),
         ('单位名称', '必填。与「联系人数据」中的单位名称一致，系统自动关联'),
+        ('联系人', '该单位的联系人姓名，用于精准匹配（可留空，留空则按单位名称匹配）'),
         ('跟进日期', '格式如 2024-01-15，跟进发生的日期'),
         ('跟进方式', '下拉选择：电话 / 拜访 / 微信 / 邮件 / 会议 / 其他'),
         ('跟进内容', '必填。跟进的具体内容描述'),
         ('下次跟进日期', '格式如 2024-02-15，计划下次跟进日期（可留空）'),
+        ('操作人', '填写系统中已存在的用户姓名（可留空，留空则默认为当前登录用户）'),
         ('', ''),
         ('四、注意事项', ''),
         ('注意1', '黄色底纹为必填字段（大类、单位名称、跟进内容）'),
@@ -1251,10 +1253,12 @@ def import_data():
             fu_col_map = {}
             fu_field_aliases = {
                 '单位名称': ['单位名称', '单位', '关联单位'],
+                '联系人': ['联系人', '联系人姓名'],
                 '跟进日期': ['跟进日期', '日期'],
                 '跟进方式': ['跟进方式', '方式'],
                 '跟进内容': ['跟进内容', '内容'],
                 '下次跟进日期': ['下次跟进日期', '下次跟进'],
+                '操作人': ['操作人', '记录人'],
             }
             for field, aliases in fu_field_aliases.items():
                 for idx, h in enumerate(fu_header):
@@ -1276,10 +1280,12 @@ def import_data():
                         return str(val).strip() if val is not None else ''
 
                     fu_unit = fu_cell('单位名称')
+                    fu_contact = fu_cell('联系人')
                     fu_content = fu_cell('跟进内容')
                     fu_date = fu_cell('跟进日期')
                     fu_type = fu_cell('跟进方式') or '电话'
                     fu_next = fu_cell('下次跟进日期') or None
+                    fu_operator = fu_cell('操作人')
 
                     if not fu_unit or not fu_content:
                         fu_errors += 1
@@ -1288,6 +1294,17 @@ def import_data():
 
                     # 查找关联的联系人ID
                     contact_id = existing_units.get(fu_unit)
+                    # 如果指定了联系人姓名，优先按姓名匹配
+                    if fu_contact:
+                        contact_row = db.execute(
+                            'SELECT id FROM contacts WHERE unit_name = ? AND name = ?',
+                            (fu_unit, fu_contact)
+                        ).fetchone()
+                        if contact_row:
+                            contact_id = contact_row['id']
+                        else:
+                            # 姓名不匹配则降级为只按单位名匹配
+                            pass
                     if not contact_id:
                         # 可能联系人已存在但不在本次导入中，查数据库
                         cr = db.execute('SELECT id FROM contacts WHERE unit_name = ?', (fu_unit,)).fetchone()
@@ -1298,11 +1315,21 @@ def import_data():
                             errors.append(f'跟进记录第{fu_row_idx}行：单位"{fu_unit}"在联系人中不存在，已跳过')
                             continue
 
+                    # 确定操作人ID：优先用填写的操作人姓名匹配用户表
+                    created_by_id = session['user_id']
+                    if fu_operator:
+                        op_row = db.execute(
+                            'SELECT id FROM users WHERE name = ? AND status = 1',
+                            (fu_operator,)
+                        ).fetchone()
+                        if op_row:
+                            created_by_id = op_row['id']
+
                     try:
                         db.execute('''INSERT INTO followups
                             (contact_id, follow_date, follow_type, content, next_follow_date, created_by)
                             VALUES (?, ?, ?, ?, ?, ?)''',
-                            (contact_id, fu_date, fu_type, fu_content, fu_next, session['user_id']))
+                            (contact_id, fu_date, fu_type, fu_content, fu_next, created_by_id))
                         fu_success += 1
                     except Exception as e:
                         fu_errors += 1

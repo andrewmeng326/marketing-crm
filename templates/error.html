@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错误 {{ code }} - 营销管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="error-page">
+    <div class="error-container">
+        <div class="error-code">{{ code }}</div>
+        <h2>{{ msg }}</h2>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">返回首页</a>
+    </div>
+</body>
+</html>

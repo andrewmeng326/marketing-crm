@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block title %}工作台 - 营销管理系统{% endblock %}
+{% block page_title %}工作台{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="stats-grid">
+    <div class="stat-card stat-card-primary">
+        <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ total }}</span>
+            <span class="stat-label">联系人总数</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card-success">
+        <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ month_new }}</span>
+            <span class="stat-label">本月新增</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card-warning">
+        <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ upcoming|length }}</span>
+            <span class="stat-label">待跟进提醒</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card-info">
+        <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>
+            </svg>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ recent_followups|length }}</span>
+            <span class="stat-label">近期跟进</span>
+        </div>
+    </div>
+</div>
+
+<!-- 内容区域 -->
+<div class="dashboard-grid">
+    <!-- 左侧 -->
+    <div class="dashboard-col">
+        <!-- 客户分布 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">客户分类分布</h3>
+                <a href="{{ url_for('contacts') }}" class="card-link">查看全部 &rarr;</a>
+            </div>
+            <div class="card-body">
+                {% if by_category %}
+                <div class="distribution-list">
+                    {% for item in by_category %}
+                    <div class="distribution-item">
+                        <div class="dist-info">
+                            <span class="dist-name">{{ item.category }}</span>
+                            <span class="dist-count">{{ item.c }} 个</span>
+                        </div>
+                        <div class="dist-bar-wrapper">
+                            <div class="dist-bar" style="width: {{ (item.c / total * 100) if total else 0 }}%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>暂无数据，请先添加联系人</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 维系等级分布 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">维系等级分布</h3>
+            </div>
+            <div class="card-body">
+                <div class="level-stats">
+                    {% for code, info in levels.items() %}
+                    {% set count = namespace(val=0) %}
+                    {% for item in by_level %}
+                        {% if item.maintenance_level == code %}{% set count.val = item.c %}{% endif %}
+                    {% endfor %}
+                    <div class="level-stat-item" style="border-left-color: {{ info.color }};">
+                        <div class="level-stat-header">
+                            <span class="level-badge" style="background: {{ info.color }};">{{ code }}</span>
+                            <span class="level-stat-count">{{ count.val }}</span>
+                        </div>
+                        <span class="level-stat-desc">{{ info.desc }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 营销人员统计 -->
+        {% if staff_stats %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">营销人员客户数</h3>
+            </div>
+            <div class="card-body">
+                <div class="staff-rank-list">
+                    {% for s in staff_stats %}
+                    <div class="staff-rank-item">
+                        <div class="rank-num rank-{{ loop.index }}">{{ loop.index }}</div>
+                        <div class="rank-info">
+                            <span class="rank-name">{{ s.name }}</span>
+                            <div class="rank-bar-wrapper">
+                                <div class="rank-bar" style="width: {{ (s.count / staff_stats[0].count * 100) if staff_stats[0].count else 0 }}%"></div>
+                            </div>
+                        </div>
+                        <span class="rank-count">{{ s.count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 右侧 -->
+    <div class="dashboard-col">
+        <!-- 待跟进提醒 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">待跟进提醒</h3>
+                <span class="badge badge-warning">{{ upcoming|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if upcoming %}
+                <div class="followup-list">
+                    {% for u in upcoming %}
+                    <div class="followup-item followup-upcoming">
+                        <div class="followup-date">
+                            <span class="date-day">{{ u.next_follow_date[8:10] if u.next_follow_date else '--' }}</span>
+                            <span class="date-month">{{ u.next_follow_date[:7] if u.next_follow_date else '' }}</span>
+                        </div>
+                        <div class="followup-content">
+                            <div class="followup-title">
+                                {{ u.unit_name }}
+                                {% if u.contact_name %} · {{ u.contact_name }}{% endif %}
+                                {% if u.maintenance_level %}
+                                <span class="level-tag" style="background: {{ levels[u.maintenance_level].color if u.maintenance_level in levels else '#999' }};">{{ u.maintenance_level }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state"><p>暂无待跟进事项</p></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 近期跟进记录 -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">近期跟进记录</h3>
+                <a href="{{ url_for('followups') }}" class="card-link">查看全部 &rarr;</a>
+            </div>
+            <div class="card-body">
+                {% if recent_followups %}
+                <div class="timeline">
+                    {% for f in recent_followups %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="timeline-title">{{ f.unit_name }}{% if f.contact_name %} · {{ f.contact_name }}{% endif %}</span>
+                                <span class="timeline-type">{{ f.follow_type }}</span>
+                            </div>
+                            <p class="timeline-text">{{ f.content[:80] }}{% if f.content|length > 80 %}...{% endif %}</p>
+                            <div class="timeline-meta">
+                                <span>{{ f.follow_date }}</span>
+                                {% if f.operator %}<span>· {{ f.operator }}</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state"><p>暂无跟进记录</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

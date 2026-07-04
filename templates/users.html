@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}用户管理 - 营销管理系统{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+
+{% block content %}
+<div class="action-bar">
+    <div class="result-bar" style="margin:0;">
+        <span>共 <strong>{{ users|length }}</strong> 个用户</span>
+    </div>
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="openModal('addUserModal')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            新增用户
+        </button>
+    </div>
+</div>
+
+<!-- 权限说明 -->
+<div class="perm-info-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+    <span>权限等级说明：</span>
+    {% for code, info in access_levels.items() %}
+    <span class="perm-badge" style="background:{{ info.color }};">{{ info.label }}</span>
+    <span style="color:#6B7280;font-size:12px;">{{ info.desc }}</span>
+    {% endfor %}
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width:50px;">ID</th>
+                <th>用户名</th>
+                <th>姓名</th>
+                <th>角色</th>
+                <th style="width:90px;">权限等级</th>
+                <th>小组</th>
+                <th>联系方式</th>
+                <th>状态</th>
+                <th>联系人数</th>
+                <th>最近登录</th>
+                <th style="width:140px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td><strong>{{ u.username }}</strong></td>
+                <td>{{ u.name }}</td>
+                <td>
+                    {% if u.role == 'admin' %}
+                    <span class="role-tag role-admin">管理员</span>
+                    {% else %}
+                    <span class="role-tag role-staff">营销员</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set al = u.access_level or 'L1' %}
+                    <span class="perm-badge perm-badge-sm" style="background:{{ access_levels[al].color if al in access_levels else '#999' }};">
+                        {{ access_levels[al].label if al in access_levels else al }}
+                    </span>
+                </td>
+                <td>{{ u.team or '-' }}</td>
+                <td>{{ u.phone or '-' }}</td>
+                <td>
+                    {% if u.status == 1 %}
+                    <span class="status-tag status-active">启用</span>
+                    {% else %}
+                    <span class="status-tag status-dormant">禁用</span>
+                    {% endif %}
+                </td>
+                <td>{{ u.contact_count }}</td>
+                <td>{{ u.last_login or '未登录' }}</td>
+                <td>
+                    <div class="table-actions">
+                        <button class="btn-icon btn-icon-edit" title="编辑"
+                                onclick='openEditModal({{ u|tojson }})'>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        {% if u.id != session.get('user_id') %}
+                        <form method="POST" action="{{ url_for('user_delete', uid=u.id) }}" class="inline-form"
+                              onsubmit="return confirmDelete('确定删除用户「{{ u.name }}」吗？')">
+                            <button type="submit" class="btn-icon btn-icon-delete" title="删除">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 新增用户模态框 -->
+<div class="modal-overlay" id="addUserModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>新增用户</h3>
+            <button class="modal-close" onclick="closeModal('addUserModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('user_new') }}" class="modal-form">
+            <div class="form-grid form-grid-2">
+                <div class="form-field">
+                    <label>用户名 <span class="required">*</span></label>
+                    <input type="text" name="username" required placeholder="登录用户名">
+                </div>
+                <div class="form-field">
+                    <label>姓名 <span class="required">*</span></label>
+                    <input type="text" name="name" required placeholder="真实姓名">
+                </div>
+                <div class="form-field">
+                    <label>密码 <span class="required">*</span></label>
+                    <input type="password" name="password" required placeholder="至少6位">
+                </div>
+                <div class="form-field">
+                    <label>角色</label>
+                    <select name="role">
+                        <option value="staff">营销员</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>权限等级</label>
+                    <select name="access_level">
+                        <option value="L1">L1 - 仅本人</option>
+                        <option value="L2">L2 - 同组</option>
+                        <option value="L3">L3 - 全部</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>所属小组</label>
+                    <input type="text" name="team" placeholder="如：一组、二组">
+                </div>
+                <div class="form-field">
+                    <label>手机号</label>
+                    <input type="text" name="phone" placeholder="手机号码">
+                </div>
+                <div class="form-field">
+                    <label>邮箱</label>
+                    <input type="email" name="email" placeholder="电子邮箱">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addUserModal')">取消</button>
+                <button type="submit" class="btn btn-primary">添加用户</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑用户模态框 -->
+<div class="modal-overlay" id="editUserModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>编辑用户</h3>
+            <button class="modal-close" onclick="closeModal('editUserModal')">&times;</button>
+        </div>
+        <form method="POST" action="" id="editUserForm" class="modal-form">
+            <div class="form-grid form-grid-2">
+                <div class="form-field">
+                    <label>用户名</label>
+                    <input type="text" id="edit_username" disabled>
+                </div>
+                <div class="form-field">
+                    <label>姓名 <span class="required">*</span></label>
+                    <input type="text" name="name" id="edit_name" required>
+                </div>
+                <div class="form-field">
+                    <label>新密码（留空不修改）</label>
+                    <input type="password" name="password" placeholder="不修改请留空">
+                </div>
+                <div class="form-field">
+                    <label>角色</label>
+                    <select name="role" id="edit_role">
+                        <option value="staff">营销员</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>权限等级</label>
+                    <select name="access_level" id="edit_access_level">
+                        <option value="L1">L1 - 仅本人</option>
+                        <option value="L2">L2 - 同组</option>
+                        <option value="L3">L3 - 全部</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>所属小组</label>
+                    <input type="text" name="team" id="edit_team" placeholder="如：一组、二组">
+                </div>
+                <div class="form-field">
+                    <label>手机号</label>
+                    <input type="text" name="phone" id="edit_phone">
+                </div>
+                <div class="form-field">
+                    <label>邮箱</label>
+                    <input type="email" name="email" id="edit_email">
+                </div>
+                <div class="form-field">
+                    <label>状态</label>
+                    <select name="status" id="edit_status">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal('editUserModal')">取消</button>
+                <button type="submit" class="btn btn-primary">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditModal(user) {
+    document.getElementById('edit_username').value = user.username;
+    document.getElementById('edit_name').value = user.name;
+    document.getElementById('edit_role').value = user.role;
+    document.getElementById('edit_access_level').value = user.access_level || 'L1';
+    document.getElementById('edit_team').value = user.team || '';
+    document.getElementById('edit_phone').value = user.phone || '';
+    document.getElementById('edit_email').value = user.email || '';
+    document.getElementById('edit_status').value = user.status;
+    document.getElementById('editUserForm').action = '/users/' + user.id + '/edit';
+    openModal('editUserModal');
+}
+</script>
+{% endblock %}

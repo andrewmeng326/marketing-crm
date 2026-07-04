@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block title %}联系人管理 - 营销管理系统{% endblock %}
+{% block page_title %}联系人管理{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="action-bar">
+    <form method="GET" class="filter-form" id="filterForm">
+        <div class="filter-row">
+            <div class="filter-search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="keyword" value="{{ filters.keyword }}" placeholder="搜索单位/姓名/部门/职务/项目/电话..." class="search-input">
+            </div>
+            <select name="category" class="filter-select" onchange="updateSubcategory(this)">
+                <option value="">全部分类</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}" {% if filters.category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+            <select name="subcategory" class="filter-select" id="subcategorySelect">
+                <option value="">全部子类</option>
+            </select>
+            <select name="level" class="filter-select">
+                <option value="">全部等级</option>
+                {% for code, info in levels.items() %}
+                <option value="{{ code }}" {% if filters.level == code %}selected{% endif %}>{{ info.label }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" class="filter-select">
+                <option value="">全部状态</option>
+                {% for s in statuses %}
+                <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            <select name="person" class="filter-select">
+                <option value="">全部维系人</option>
+                {% for p in persons %}
+                <option value="{{ p.maintenance_person }}" {% if filters.person == p.maintenance_person %}selected{% endif %}>{{ p.maintenance_person }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+            <a href="{{ url_for('contacts') }}" class="btn btn-outline btn-sm">重置</a>
+        </div>
+    </form>
+    <div class="action-buttons">
+        <a href="{{ url_for('contact_new') }}" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            新增联系人
+        </a>
+        <a href="{{ url_for('import_page') }}" class="btn btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            批量导入
+        </a>
+        <a href="{{ url_for('export_excel') }}" class="btn btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            导出Excel
+        </a>
+    </div>
+</div>
+
+<!-- 统计条 -->
+<div class="result-bar">
+    <span>共找到 <strong>{{ contacts|length }}</strong> 条记录</span>
+    {% if not is_admin and current_access_level != 'L3' %}
+    <span class="perm-hint">（您当前权限等级：{{ access_levels[current_access_level].label if current_access_level in access_levels else 'L1' }}，仅显示权限范围内的数据）</span>
+    {% endif %}
+</div>
+
+<!-- 联系人表格 -->
+<div class="table-container">
+    {% if contacts %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width:50px;">序号</th>
+                <th style="width:100px;">分类</th>
+                <th>单位名称</th>
+                <th>部门</th>
+                <th>职务</th>
+                <th>姓名</th>
+                <th>联系方式</th>
+                <th>主要跟踪项目/目标</th>
+                <th style="width:80px;">维系等级</th>
+                <th>维系人</th>
+                <th style="width:80px;">状态</th>
+                <th style="width:140px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in contacts %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <div class="category-cell">
+                        <span class="category-tag">{{ c.category }}</span>
+                        {% if c.subcategory %}<span class="subcategory-tag">{{ c.subcategory }}</span>{% endif %}
+                    </div>
+                </td>
+                <td>
+                    <strong>{{ c.unit_name }}</strong>
+                    {% if c.remark %}<div class="cell-remark">{{ c.remark[:30] }}{% if c.remark|length > 30 %}...{% endif %}</div>{% endif %}
+                </td>
+                <td>{{ c.department or '-' }}</td>
+                <td>{{ c.position or '-' }}</td>
+                <td>{{ c.name or '-' }}</td>
+                <td>{{ c.phone or '-' }}</td>
+                <td>{{ c.main_project[:30] if c.main_project else '-' }}{% if c.main_project and c.main_project|length > 30 %}...{% endif %}</td>
+                <td>
+                    {% if c.maintenance_level in levels %}
+                    <span class="level-badge" style="background: {{ levels[c.maintenance_level].color }};" title="{{ levels[c.maintenance_level].desc }}">{{ c.maintenance_level }}</span>
+                    {% else %}
+                    <span class="level-badge" style="background:#999;">{{ c.maintenance_level or '?' }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ c.maintenance_person or '-' }}</td>
+                <td>
+                    <span class="status-tag status-{{ 'active' if c.status == '活跃' else ('potential' if c.status == '潜在' else 'dormant') }}">{{ c.status }}</span>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <a href="{{ url_for('contact_edit', cid=c.id) }}" class="btn-icon btn-icon-edit" title="编辑">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </a>
+                        <form method="POST" action="{{ url_for('contact_delete', cid=c.id) }}" class="inline-form"
+                              onsubmit="return confirmDelete('确定要删除「{{ c.unit_name }}」吗？此操作不可撤销。')">
+                            <button type="submit" class="btn-icon btn-icon-delete" title="删除">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state large">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <h3>暂无联系人数据</h3>
+        <p>点击"新增联系人"开始添加您的客户信息</p>
+        <a href="{{ url_for('contact_new') }}" class="btn btn-primary">新增联系人</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 子类联动
+var subcategories = {{ categories | tojson }};
+var currentSub = '{{ filters.subcategory }}';
+
+function updateSubcategory(sel) {
+    var subSel = document.getElementById('subcategorySelect');
+    var cat = sel.value;
+    subSel.innerHTML = '<option value="">全部子类</option>';
+    if (cat && subcategories[cat]) {
+        subcategories[cat].forEach(function(s) {
+            var opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            if (s === currentSub) opt.selected = true;
+            subSel.appendChild(opt);
+        });
+    }
+}
+
+// 初始化子类
+document.addEventListener('DOMContentLoaded', function() {
+    var catSel = document.querySelector('select[name="category"]');
+    if (catSel.value) {
+        updateSubcategory(catSel);
+    } else {
+        // 恢复选中状态
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('subcategory')) {
+            catSel.value = params.get('category');
+            updateSubcategory(catSel);
+        }
+    }
+});
+</script>
+{% endblock %}

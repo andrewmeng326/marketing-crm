@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}跟进记录 - 营销管理系统{% endblock %}
+{% block page_title %}跟进记录{% endblock %}
+
+{% block content %}
+<div class="action-bar">
+    <form method="GET" class="filter-form">
+        <div class="filter-row">
+            <div class="filter-search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="keyword" value="{{ keyword }}" placeholder="搜索单位/内容/姓名..." class="search-input">
+            </div>
+            <select name="type" class="filter-select">
+                <option value="">全部方式</option>
+                {% for t in follow_types %}
+                <option value="{{ t }}" {% if cur_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+            <a href="{{ url_for('followups') }}" class="btn btn-outline btn-sm">重置</a>
+        </div>
+    </form>
+</div>
+
+<div class="result-bar">
+    <span>共 <strong>{{ followups|length }}</strong> 条跟进记录</span>
+</div>
+
+<div class="table-container">
+    {% if followups %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width:110px;">跟进日期</th>
+                <th style="width:80px;">方式</th>
+                <th>单位/联系人</th>
+                <th>跟进内容</th>
+                <th style="width:110px;">下次跟进</th>
+                <th style="width:100px;">操作人</th>
+                <th style="width:80px;">等级</th>
+                <th style="width:60px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in followups %}
+            <tr>
+                <td><strong>{{ f.follow_date }}</strong></td>
+                <td><span class="fu-type-tag">{{ f.follow_type }}</span></td>
+                <td>
+                    <strong>{{ f.unit_name }}</strong>
+                    {% if f.contact_name %}<div class="cell-sub">{{ f.contact_name }}</div>{% endif %}
+                </td>
+                <td><div class="cell-wrap">{{ f.content }}</div></td>
+                <td>
+                    {% if f.next_follow_date %}
+                    <span class="next-date {% if f.next_follow_date < now.strftime('%Y-%m-%d') %}next-overdue{% endif %}">
+                        {{ f.next_follow_date }}
+                    </span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ f.operator or '-' }}</td>
+                <td>
+                    {% if f.maintenance_level in levels %}
+                    <span class="level-badge" style="background: {{ levels[f.maintenance_level].color }};">{{ f.maintenance_level }}</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('contact_edit', cid=f.contact_id) }}" class="btn-icon btn-icon-view" title="查看联系人">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state large">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3;">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <h3>暂无跟进记录</h3>
+        <p>在联系人详情页中可以添加跟进记录</p>
+        <a href="{{ url_for('contacts') }}" class="btn btn-primary">前往联系人管理</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

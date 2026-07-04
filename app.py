@@ -302,6 +302,20 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/health')
+def health():
+    """健康检查接口：验证数据库和用户是否正常"""
+    db = get_db()
+    users = db.execute('SELECT username, name, role FROM users').fetchall()
+    user_list = [{'username': u['username'], 'name': u['name'], 'role': u['role']} for u in users]
+    contacts_count = db.execute('SELECT COUNT(*) as c FROM contacts').fetchone()['c']
+    return jsonify({
+        'ok': True,
+        'users': user_list,
+        'contacts_count': contacts_count,
+        'db_path': app.config['DATABASE'],
+    })
+
 @app.route('/logout')
 def logout():
     log_action('登出', '系统', f'用户 {session.get("username", "")} 登出')

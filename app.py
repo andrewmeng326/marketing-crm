@@ -6,11 +6,13 @@
 """
 
 import os
+import sys
 import sqlite3
 import json
 import hashlib
 import secrets
 import time
+import traceback
 from datetime import datetime, date
 from functools import wraps
 from flask import (Flask, request, session, redirect, url_for, render_template,
@@ -1255,6 +1257,26 @@ def inject_globals():
         'access_levels': ACCESS_LEVELS,
         'now': datetime.now(),
     }
+
+
+# ============================================================
+# 全局错误处理（方便调试云部署问题）
+# ============================================================
+@app.errorhandler(500)
+def internal_error(e):
+    tb = traceback.format_exc()
+    print(f'[500 ERROR] {tb}', file=sys.stderr)
+    return render_template('error.html',
+                           message=f'服务器内部错误',
+                           detail=tb.replace('\n', '<br>') if app.config.get('DEBUG') else '请联系管理员'), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    tb = traceback.format_exc()
+    print(f'[EXCEPTION] {tb}', file=sys.stderr)
+    return render_template('error.html',
+                           message=f'请求出错: {str(e)}',
+                           detail=tb.replace('\n', '<br>') if app.config.get('DEBUG') else '请联系管理员'), 500
 
 
 # ============================================================
